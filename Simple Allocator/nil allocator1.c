@@ -65,6 +65,7 @@ char* nxt_blk(char *p)
 void pool_init()
 {
     g_headptr = (char*)malloc(MAX_HEAP);
+    g_headptr = (char*)((((long long)g_headptr)-1)/8*8+8);
     w_empty(g_headptr,pack(8,0x0));
     g_tailptr = g_headptr+8;
     w_empty(g_tailptr,pack(8,0x0));
@@ -114,15 +115,44 @@ void *alloc(int sz)
 void release(void *p)
 {
     char *c = (char*)p;
-    if(b_pre_allo((char*)p)==0&& (c = pre_blk((char*)p)) != g_headptr){
+    if(b_pre_allo((char*)p)==0 && (c = pre_blk((char*)p)) != g_headptr){
         // c = pre_blk((char*)p);
         w_empty(c,pack(b_size(c) + b_size((char*)p),b_pre_allo(c)));
     }
     char *n = nxt_blk(c);
-    if(n!=g_tailptr&& b_allo(n)==0){
+    if(n!=g_tailptr && b_allo(n)==0){
         w_empty(c,pack(b_size(c)+b_size(n),b_pre_allo(c)));
     }
     return;
+}
+
+//打印链表,cnt=0，就是打印到尾部；
+void d_list(char *h,int cnt)
+{
+    if(cnt==0){
+        for(;;){
+            printf("%lld\t%d\t%d\t%d\n",(long long)h,b_size(h),b_pre_allo(h),b_allo(h));
+            if(h==g_tailptr){
+                break;
+            }
+            h=nxt_blk(h);
+        }
+    }else{
+        for(;;){
+            printf("%lld\t%d\t%d\t%d\n",(long long)h,b_size(h),b_pre_allo(h),b_allo(h));
+            if(h==g_tailptr||--cnt==0){
+                break;
+            }
+            h=nxt_blk(h);
+        }
+    }
+}
+
+int main()
+{
+    pool_init();
+    d_list(g_headptr,0);
+    return 0;
 }
 
 
