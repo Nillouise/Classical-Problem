@@ -65,7 +65,10 @@ char* nxt_blk(char *p)
 void pool_init()
 {
     g_headptr = (char*)malloc(MAX_HEAP);
-    g_tailptr = (char*)(cvt(g_headptr)+2);
+    w_empty(g_headptr,pack(8,0x0));
+    g_tailptr = g_headptr+8;
+    w_empty(g_tailptr,pack(8,0x0));
+    return;
 }
 
 //返回处理后，最后一段空白的地址
@@ -77,7 +80,7 @@ char* extend_heap(int sz)
     }else{
         h=g_tailptr;
     }
-    g_tailptr += sz - b_size(h);
+    g_tailptr = h + sz;
     w_empty(h,pack(sz,b_pre_allo(h)));
     //8是因为tail占了两个int字节
     w_empty(g_tailptr,pack(8,0));
@@ -87,9 +90,9 @@ char* extend_heap(int sz)
 void *alloc(int sz)
 {
     char *cur = g_headptr;
-    //4是因为头部需要4个char放块的大小
+    //4是因为头部需要4个char放块的大小和info
     sz = (sz-1+4)/8*8+8;
-    while(b_size(cur)<sz&&b_allo(cur)==0&&cur!=g_tailptr){
+    while((b_size(cur)<sz||b_allo(cur)==1)&&cur!=g_tailptr){
         cur= nxt_blk(cur);
     }
     
@@ -99,10 +102,9 @@ void *alloc(int sz)
     int ori_sz = b_size(cur);
     //少于两个字节空闲则直接加入占用
     if(ori_sz-sz<8){
-        *cvt(cur) = pack(ori_sz,b_pre_allo(cur) & 0x1);
+        *cvt(cur) = pack(ori_sz,b_pre_allo(cur) | 0x1);
     }else{
-        *cvt(cur) = pack(sz,b_pre_allo(cur) & 0x1);
-        
+        *cvt(cur) = pack(sz,b_pre_allo(cur) | 0x1);
         w_empty(cur+sz,pack(ori_sz-sz,0x2));
     }
     return (void*)(cur+4);
@@ -112,8 +114,8 @@ void *alloc(int sz)
 void release(void *p)
 {
     char *c = (char*)p;
-    if(b_pre_allo((char*)p)>0){
-        c = pre_blk((char*)p);
+    if(b_pre_allo((char*)p)==0&& (c = pre_blk((char*)p)) != g_headptr){
+        // c = pre_blk((char*)p);
         w_empty(c,pack(b_size(c) + b_size((char*)p),b_pre_allo(c)));
     }
     char *n = nxt_blk(c);
